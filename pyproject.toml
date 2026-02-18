@@ -1,0 +1,27 @@
+[project]
+name = "FamilyHub"
+version = "0.1.0"
+description = "A family wallboard application"
+authors = [
+    { name = "Dale Heeks" }
+]
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = ["requests",
+                "os",
+                "Calendar",
+                "datetime",
+                "date",
+                "timedelta",
+                "time",
+                "flask",
+                "pytz",
+                "service_account",
+                "build",
+                "Thread",
+                "csv"
+]
+
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"

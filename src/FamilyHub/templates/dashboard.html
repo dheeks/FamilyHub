@@ -1,0 +1,1361 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Custom Dashboard</title>
+<style>
+    /* ------------------------------
+   GLOBAL LAYOUT
+------------------------------ */
+    * {
+        box-sizing: border-box;
+    }
+
+    body {
+        margin: 0;
+        display: flex;
+        height: 100vh;
+        background: #111;
+        color: white;
+        font-family: Arial, sans-serif;
+    }
+
+    /* ------------------------------
+   SIDEBAR
+------------------------------ */
+    .sidebar {
+        width: 80px;
+        background: #1a1a1a;
+        padding: 10px;
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+        align-items: center;
+        border-right: 3px solid #999;
+    }
+
+    .icon {
+        width: 50px;
+        height: 50px;
+        background: #999;
+        border-radius: 10px;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        cursor: grab;
+        user-select: none;
+        font-size: 24px;
+    }
+
+    /* ------------------------------
+   MAIN COLUMN
+------------------------------ */
+    .main {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+    }
+
+    /* ------------------------------
+   TOP PANEL
+------------------------------ */
+    .top-panel {
+        height: 60px;
+        border-bottom: 3px solid #999;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        background: #181818;
+        padding: 6px 10px;
+    }
+
+    /* ------------------------------
+   MIDDLE PANEL
+------------------------------ */
+    .middle-full {
+        flex: 1;
+        margin: 10px;
+        border: 3px solid #bbb;
+        border-radius: 10px;
+        padding: 10px;
+        display: flex;
+        flex-direction: column;
+        min-height: 0;
+        overflow-y: auto;
+        position: relative;
+    }
+
+    /* ------------------------------
+   BOTTOM PANELS
+------------------------------ */
+    .bottom-panels {
+        flex: 1;
+        display: flex;
+        gap: 10px;
+        padding: 10px;
+    }
+
+        .bottom-panels .panel {
+            flex: 1;
+            border: 3px solid #bbb;
+            border-radius: 10px;
+            padding: 10px;
+            display: flex;
+            flex-direction: column;
+            min-height: 0;
+            overflow-y: auto;
+            position: relative;
+        }
+
+    /* ------------------------------
+   PANEL CONTROLS
+------------------------------ */
+    .panel-controls {
+        position: absolute;
+        top: 6px;
+        right: 6px;
+        display: flex;
+        gap: 6px;
+        z-index: 2;
+    }
+
+    .panel-btn {
+        background: #333;
+        border: none;
+        color: white;
+        padding: 4px 6px;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 10px;
+    }
+
+    /* ------------------------------
+   WIDGET CONTAINER
+------------------------------ */
+    .widget {
+        /* allow widgets to shrink inside panels */
+        flex: 1 1 0;
+        background: #222;
+        padding: 10px;
+        border-radius: 8px;
+        display: flex;
+        flex-direction: column;
+        min-height: 0;
+        overflow-y: auto;
+        overflow-x: hidden;
+    }
+
+    /* ------------------------------
+   PHOTO WIDGET NO SCROLL
+------------------------------ */
+    /* Photo widgets should not scroll and must be able to shrink */
+    .panel[data-panel="bottom-left"] .widget,
+    .panel[data-panel="bottom-right"] .widget {
+        display: flex;
+        flex-direction: column;
+        flex: 1 1 0;
+        min-height: 0;
+        overflow: hidden !important;
+    }
+
+    /* Photo container fills the widget so the image has a constrained box */
+    .photo-widget,
+    .photo-slideshow {
+        width: 100%;
+        height: 100%;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        flex: 1 1 0;
+        min-height: 0;
+        overflow: hidden;
+    }
+
+        /* Image scales down to fit the container */
+        .photo-slideshow img {
+            display: block;
+            width: auto !important;
+            height: auto !important;
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+            border-radius: 8px;
+            transition: opacity 0.6s ease-in-out;
+        }
+
+    /* ------------------------------
+   WEATHER AND CALENDAR
+------------------------------ */
+    .weather-multi {
+        display: flex;
+        gap: 20px;
+        align-items: center;
+    }
+
+    .weather-city {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 1.5rem;
+    }
+
+        .weather-city img {
+            height: 28px;
+        }
+
+    #top-time {
+        font-size: 2.2rem;
+        font-weight: 700;
+    }
+
+    .calendar-week-content {
+        display: flex;
+        flex-direction: row;
+        gap: 16px;
+        overflow-x: auto;
+        padding: 8px;
+    }
+
+    .calendar-week-day {
+        min-width: 180px;
+        background: rgba(255,255,255,0.08);
+        padding: 8px;
+        border-radius: 6px;
+        flex: 1;
+    }
+
+        .calendar-week-widget,
+        .calendar-week-day h3,
+        .calendar-item {
+            font-size: 1.5rem;
+        }
+
+    /* Middle panel default height */
+    .middle-default {
+        flex: 1;
+    }
+
+    /* Middle panel expanded to fill available space */
+    .middle-expanded {
+        flex: 1 1 auto;
+        height: calc(100vh - 60px - 20px); /* full height minus top panel + margins */
+    }
+
+    /* Hide bottom panels when expanded */
+    .bottom-hidden {
+        display: none !important;
+    }
+
+    /* Alternating day backgrounds — mid‑range greys */
+    .calendar-week-day:nth-child(odd) {
+        background: #4a4a4a; /* medium grey */
+        color: #fff;
+    }
+
+    .calendar-week-day:nth-child(even) {
+        background: #3a3a3a; /* slightly darker grey */
+        color: #fff;
+    }
+
+
+    /* 3D effect */
+    .calendar-week-day {
+        border-radius: 8px;
+        padding: 10px;
+        box-shadow: 0 3px 6px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.05);
+        transform: translateY(0);
+        transition: transform 0.15s ease, box-shadow 0.15s ease;
+    }
+
+    /* Slight lift on hover (optional but looks great) */
+    .calendar-week-day:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 6px 12px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.08);
+    }
+
+    .analog-clock {
+        width: 360px; /* doubled */
+        height: 360px; /* doubled */
+        margin: auto;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+    }
+
+    .clock-face {
+        width: 100%;
+        height: 100%;
+        border: 10px solid #b8860b; /* thicker border for bigger clock */
+        border-radius: 50%;
+        position: relative;
+        background: #fdfdfd;
+        box-shadow: inset 0 0 15px rgba(0,0,0,0.4);
+    }
+
+    .hour-hand {
+        width: 10px;
+        height: 90px;
+        background: #333;
+        border-radius: 6px;
+    }
+
+    .minute-hand {
+        width: 6px;
+        height: 130px;
+        background: red; /* changed */
+        border-radius: 6px;
+    }
+
+    .second-hand {
+        width: 3px;
+        height: 150px;
+        background: #555; /* changed */
+        border-radius: 3px;
+    }
+
+    .ticks div {
+        position: absolute;
+        width: 4px;
+        height: 30px; /* longer tick for larger clock */
+        background: #999;
+        left: 50%;
+        top: 0; /* start at the very top of the face */
+        transform-origin: center 170px; /* inner radius of the clock */
+    }
+
+    .clock-number {
+        position: absolute;
+        transform: translate(-50%, -50%);
+        white-space: nowrap;
+        font-weight: bold;
+        color: black;
+    }
+
+    .clock-number .minute {
+        color: red;
+        margin-left: 4px;
+        font-weight: normal;
+    }
+
+    .clock-face .hand {
+        position: absolute;
+        left: 50%;
+        top: 50%;
+        transform-origin: 50% 100%; /* pivot at bottom center */
+        transform: translate(-50%, -100%) rotate(0deg);
+    }
+
+    .weight-widget {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        font-size: 1.2rem;
+    }
+
+    .weight-input-row {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+    }
+
+    .weight-input-row input {
+        width: 100px;
+        padding: 6px;
+        font-size: 1.1rem;
+        border-radius: 6px;
+        border: 2px solid #666;
+        background: #222;
+        color: white;
+    }
+
+    .weight-input-row button {
+        padding: 6px 10px;
+        font-size: 1rem;
+        border-radius: 6px;
+        border: none;
+        background: #4caf50;
+        color: white;
+        cursor: pointer;
+    }
+
+    .weight-input-row button:hover {
+        background: #45a049;
+    }
+
+    .weight-chart {
+        width: 100%;
+        height: 200px;
+        background: #111;
+        border: 2px solid #555;
+        border-radius: 8px;
+    }
+
+    /* Hard cap main layout to the viewport width */
+    .main,
+    .middle-full,
+    .bottom-panels,
+    .bottom-panels .panel {
+        max-width: 100vw;
+        box-sizing: border-box;
+    }
+
+
+    .bottom-panels {
+        flex-wrap: nowrap;
+    }
+
+        .bottom-panels .panel {
+            flex: 1 1 0;
+            min-width: 0;
+        }
+
+    .main {
+        flex: 1 1 auto;
+        min-width: 0;
+    }
+
+    .middle-full,
+    .bottom-panels,
+    .bottom-panels .panel {
+        min-width: 0;
+    }
+
+    .alarm-dot {
+        position: absolute;
+        width: 14px;
+        height: 14px;
+        background: red;
+        border-radius: 50%;
+        transform: translate(-50%, -50%);
+        display: none; /* hidden until an alarm is set */
+    }
+
+
+</style>
+</head>
+
+<body>
+
+    <!-- Sidebar -->
+    <div class="sidebar">
+        <div class="icon" draggable="true" data-widget="calendar">🗳️</div>
+        <div class="icon" draggable="true" data-widget="photos">🖼</div>
+        <div class="icon" draggable="true" data-widget="weather">🌤</div>
+        <div class="icon" draggable="true" data-widget="time">🕒</div>
+        <div class="icon" draggable="true" data-widget="calendar-week">📅</div>
+        <div class="icon" draggable="true" data-widget="school">📚</div>
+        <div class="icon" draggable="true" data-widget="weight">⚖️</div>
+        <div class="icon" draggable="true" data-widget="local-photos">L</div>
+
+
+
+    </div>
+
+    <!-- Main Panels -->
+    <div class="main">
+
+        <!-- Existing top panel (unchanged) -->
+        <div class="top-panel panel" data-panel="top">
+            <div id="top-weather-multi" class="weather-multi"></div>
+            <div id="top-time" style="margin-left: 20px;"></div>
+        </div>
+
+        <!-- NEW full-width middle panel -->
+        <div class="middle-full panel" data-panel="middle">
+            <div class="panel-controls">
+                <button class="panel-btn expand-btn">Expand</button>
+                <button class="panel-btn restore-btn">Restore</button>
+            </div>
+        </div>
+
+        <!-- Bottom two panels -->
+        <div class="bottom-panels" id="bottom-panels">
+            <div class="panel flex-panel" data-panel="bottom-left">
+            </div>
+
+            <div class="panel flex-panel" data-panel="bottom-right">
+            </div>
+        </div>
+
+    </div>
+
+
+
+    <script>
+        // Drag start
+        document.querySelectorAll(".icon").forEach(icon => {
+            icon.addEventListener("dragstart", e => {
+                e.dataTransfer.setData("widget", e.target.dataset.widget);
+            });
+        });
+
+        // Allow drop
+        document.querySelectorAll(".panel").forEach(panel => {
+            panel.addEventListener("dragover", e => e.preventDefault());
+
+            panel.addEventListener("drop", e => {
+                e.preventDefault();
+                const widgetType = e.dataTransfer.getData("widget");
+                const panelType = panel.dataset.panel;
+
+                // Restrict top panel
+                if (panelType === "top") {
+                    if (widgetType !== "weather" && widgetType !== "time") {
+                        alert("Top panel only accepts weather or time");
+                        return;
+                    }
+                }
+
+                // Clear panel BEFORE adding widget
+                [...panel.children].forEach(child => {
+                    if (!child.classList.contains("panel-controls")) {
+                        child.remove();
+                    }
+                });
+
+                // Now add the widget
+                addWidgetToPanel(panel, widgetType);
+            });
+
+        });
+
+        // Widget loader
+        function addWidgetToPanel(panel, type) {
+            const widget = document.createElement("div");
+            widget.className = "widget";
+
+            //if (type === "calendar") widget.textContent = "📅 Calendar Widget";
+            //if (type === "photos") widget.textContent = "🖼 Photo Slideshow";
+            //if (type === "weather") widget.textContent = "🌤 Weather Widget";
+            //if (type === "time") widget.textContent = "🕒 Time Widget";
+
+            if (type === "time") {
+                widget.innerHTML = `
+                    <div class="analog-clock">
+                        <div class="clock-face">
+                            <div class="hand hour-hand"></div>
+                            <div class="hand minute-hand"></div>
+                            <div class="hand second-hand"></div>
+                            <div class="ticks"></div>
+                            <div class="alarm-dot"></div>
+                        </div>
+                    </div>
+                `;
+                initAnalogClock(widget);
+            }
+
+            if (type === "weight") {
+                widget.innerHTML = `
+                    <div class="weight-widget">
+                        <div class="weight-input-row">
+                            <input type="number" step="0.1" placeholder="lbs" class="weight-input">
+                            <button class="weight-submit">Save</button>
+                        </div>
+
+                        <canvas class="weight-chart"></canvas>
+                        <div class="weight-status" style="font-size:0.9rem; opacity:0.7;"></div>
+                    </div>
+                `;
+
+                    initWeightWidget(widget);
+            }
+
+
+            if (type === "weather") {
+                widget.innerHTML = `
+                <div class="weather-7day">
+                    <div class="weather-header" style="
+                        font-size: 1.8rem;
+                        font-weight: 700;
+                        margin-bottom: 10px;
+                        text-align: center;
+                    "></div>
+
+                    <div class="weather-loading">Loading forecast...</div>
+                    <div class="weather-forecast" style="display:none;"></div>
+                </div>
+            `;
+                loadWeatherForecast(widget);
+            }
+
+            if (type === "photos") {
+                widget.innerHTML = `
+                    <div class="photo-widget">
+                        <div class="photo-slideshow">
+                            <img class="slideshow-img"
+                                 src=""
+                                 alt="Loading photos..."
+                                 style="opacity:0;"
+                                 referrerpolicy="no-referrer">
+                        </div>
+                    </div>
+                `;
+                loadSlideshow(widget, "default");   // or "family", "vacation", etc.
+            }
+
+            if (type === "local-photos") {
+                widget.innerHTML = `
+                    <div class="photo-widget">
+                        <div class="photo-slideshow">
+                            <img class="slideshow-img"
+                                 src=""
+                                 alt="Loading photos..."
+                                 style="opacity:0;">
+                        </div>
+                    </div>
+                `;
+
+                loadLocalSlideshow(widget);   // ⬅ new function
+            }
+
+            if (type === "school") {
+                widget.innerHTML = `
+                    <div class="photo-widget">
+                        <div class="photo-slideshow">
+                            <img class="slideshow-img"
+                                 src=""
+                                 alt="Loading photos..."
+                                 style="opacity:0;"
+                                 referrerpolicy="no-referrer">
+                        </div>
+                    </div>
+                `;
+                loadSlideshow(widget, "school");   // ⬅ pass folder name
+            }
+
+            if (type === "calendar") {
+                widget.innerHTML = `
+                <div class="calendar-widget">
+                    <div class="calendar-loading">Loading events...</div>
+                    <div class="calendar-content"></div>
+                </div>
+            `;
+
+                loadCalendarInto(widget);   //call your real calendar loader
+            }
+
+            if (type === "calendar-week") {
+                widget.innerHTML = `
+                <div class="calendar-week-widget">
+                    <div class="calendar-loading">Loading week...</div>
+                    <div class="calendar-week-content"></div>
+                </div>
+            `;
+                loadCalendarWeekInto(widget);
+            }
+
+
+
+
+            panel.appendChild(widget);
+        }
+
+        const middlePanels = document.getElementById("middle-panels");
+
+        function clearMiddleStates() {
+            middlePanels.classList.remove(
+                "expanded-left",
+                "expanded-right",
+                "min-left",
+                "min-right"
+            );
+        }
+
+        const middlePanel = document.querySelector('[data-panel="middle"]');
+        const bottomPanels = document.getElementById("bottom-panels");
+
+        // Default height class
+        middlePanel.classList.add("middle-default");
+
+        // Expand
+        document.querySelector('[data-panel="middle"] .expand-btn')
+            .addEventListener("click", () => {
+                middlePanel.classList.remove("middle-default");
+                middlePanel.classList.add("middle-expanded");
+                bottomPanels.classList.add("bottom-hidden");
+            });
+
+        // Restore
+        document.querySelector('[data-panel="middle"] .restore-btn')
+            .addEventListener("click", () => {
+                middlePanel.classList.remove("middle-expanded");
+                middlePanel.classList.add("middle-default");
+                bottomPanels.classList.remove("bottom-hidden");
+            });
+
+
+
+
+        // --- TOP PANEL WEATHER ---
+        async function loadWeather() {
+            try {
+                const res = await fetch("/api/weather");
+                const data = await res.json();
+
+                if (data.error) {
+                    document.getElementById("top-weather").textContent = "Weather unavailable";
+                    return;
+                }
+
+                const iconUrl = `https://openweathermap.org/img/wn/${data.icon}.png`;
+
+                document.getElementById("top-weather").innerHTML = `
+                  <img src="${iconUrl}" style="vertical-align: middle;">
+                  <span style="font-size: 1.4rem; margin-left: 6px;">
+                    ${data.temp}°F ${data.condition}
+                  </span>
+                `;
+            } catch (err) {
+                document.getElementById("top-weather").textContent = "Weather error";
+            }
+        }
+
+        setInterval(loadMultiCityWeather, 10 * 60 * 1000);
+        loadMultiCityWeather();
+
+
+        async function loadMultiCityWeather() {
+            const cities = [
+                { name: "Cleveland", url: "/api/weather?city=cleveland" },
+                { name: "Raleigh", url: "/api/weather?city=raleigh" },
+                { name: "Fairport", url: "/api/weather?city=fairport" }
+            ];
+
+            const container = document.getElementById("top-weather-multi");
+            container.innerHTML = "Loading...";
+
+            const blocks = [];
+
+            for (const city of cities) {
+                try {
+                    const res = await fetch(city.url);
+                    const data = await res.json();
+
+                    if (data.error) {
+                        blocks.push(`<div class="weather-city">${city.name}: unavailable</div>`);
+                        continue;
+                    }
+
+                    const iconUrl = `https://openweathermap.org/img/wn/${data.icon}.png`;
+
+                    blocks.push(`
+                <div class="weather-city">
+                    <strong>${city.name}</strong>
+                    <img src="${iconUrl}">
+                    <span>${data.temp}°F</span>
+                    <span>${data.condition}</span>
+                </div>
+            `);
+
+                } catch (err) {
+                    blocks.push(`<div class="weather-city">${city.name}: error</div>`);
+                }
+            }
+
+            container.innerHTML = blocks.join("");
+        }
+
+        // --- TOP PANEL CLOCK ---
+        function updateClock() {
+            const now = new Date();
+            const timeStr = now.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+            document.getElementById("top-time").textContent = timeStr;
+        }
+
+        setInterval(updateClock, 1000);
+        updateClock();
+
+        function triggerAlarm() {
+            const audio = new Audio("/static/alarm/meep.mp3");
+            audio.volume = 1.0;   // optional
+            audio.play().catch(err => {
+                console.error("Alarm sound failed:", err);
+            });
+        }
+
+        function setAlarmMinute(minute, clockFace) {
+            const dot = clockFace.querySelector(".alarm-dot");
+            const angle = minute * 6;
+
+            // radius from center (adjust to taste)
+            const radius = 150;
+
+            const x = 180 + radius * Math.sin(angle * Math.PI / 180);
+            const y = 180 - radius * Math.cos(angle * Math.PI / 180);
+
+            dot.style.left = `${x}px`;
+            dot.style.top = `${y}px`;
+            dot.style.display = "block";
+
+            clockFace._alarmMinute = minute;
+        }
+
+        
+
+        async function loadWeatherInto(widget) {
+            const loading = widget.querySelector(".weather-loading");
+            const content = widget.querySelector(".weather-content");
+
+            try {
+                const res = await fetch("/api/weather");
+                const data = await res.json();
+
+                if (data.error) {
+                    loading.textContent = "Weather unavailable";
+                    return;
+                }
+
+                widget.querySelector(".weather-icon").src =
+                    `https://openweathermap.org/img/wn/${data.icon}.png`;
+
+                widget.querySelector(".weather-temp").textContent = `${data.temp}°F`;
+                widget.querySelector(".weather-cond").textContent = data.condition;
+
+                loading.style.display = "none";
+                content.style.display = "inline-flex";
+            } catch (err) {
+                loading.textContent = "Weather error";
+            }
+        }
+
+        async function loadCalendarInto(widget) {
+            const loading = widget.querySelector(".calendar-loading");
+            const content = widget.querySelector(".calendar-content");
+
+            try {
+                const res = await fetch("/api/calendar");
+                const events = await res.json();
+
+                loading.style.display = "none";
+                content.innerHTML = "";
+
+                events.forEach(ev => {
+                    const item = document.createElement("div");
+                    item.className = "calendar-item";
+                    item.style.borderLeft = `4px solid ${ev.color}`;
+                    item.style.padding = "6px";
+                    item.style.margin = "6px 0";
+
+                    const parts = ev.start.split(" ");
+                    const timeLabel = `${parts[1]} ${parts[2] || ""}`;
+
+                    item.innerHTML =
+                        `<strong>${timeLabel}</strong> — ${ev.title}
+             <div style="font-size:0.8rem; opacity:0.7;">${ev.calendar}</div>`;
+
+                    content.appendChild(item);
+                });
+
+            } catch (err) {
+                loading.textContent = "Calendar error";
+            }
+
+            // --- Auto-refresh every 30 seconds (only set once) ---
+            if (!widget._calendarRefreshSet) {
+                widget._calendarRefreshSet = true;
+                setInterval(() => loadCalendarInto(widget), 30000);
+            }
+        }
+
+        async function loadCalendarWeekInto(widget) {
+            const loading = widget.querySelector(".calendar-loading");
+            const content = widget.querySelector(".calendar-week-content");
+
+            try {
+                const res = await fetch("/api/calendar/week");
+                const events = await res.json();
+
+                loading.style.display = "none";
+                content.innerHTML = "";
+
+                // --- Group events by day ---
+                const days = {};
+
+                events.forEach(ev => {
+                    // Parse start date (YYYY-MM-DD)
+                    const [sy, sm, sd] = ev.date.split("-").map(Number);
+                    const startDate = new Date(sy, sm - 1, sd);
+
+                    // Parse end date (YYYY-MM-DD from ev.end)
+                    const [ey, em, ed] = ev.end.split(" ")[0].split("-").map(Number);
+                    const endDate = new Date(ey, em - 1, ed);
+
+                    // Loop through each day the event spans
+                    let current = new Date(startDate);
+                    while (current <= endDate) {
+                        const yyyy = current.getFullYear();
+                        const mm = String(current.getMonth() + 1).padStart(2, "0");
+                        const dd = String(current.getDate()).padStart(2, "0");
+                        const key = `${yyyy}-${mm}-${dd}`;
+
+                        if (!days[key]) days[key] = [];
+                        days[key].push(ev);
+
+                        current.setDate(current.getDate() + 1);
+                    }
+                });
+
+                // --- Remove days earlier than today ---
+                const today = new Date();
+                today.setHours(0, 0, 0, 0);
+
+                Object.keys(days).forEach(day => {
+                    const [y, m, d] = day.split("-").map(Number);
+                    const dateObj = new Date(y, m - 1, d);
+
+                    if (dateObj < today) delete days[day];
+                });
+
+                // --- Render each day ---
+                Object.keys(days).forEach(day => {
+                    const dayBlock = document.createElement("div");
+                    dayBlock.className = "calendar-week-day";
+                    dayBlock.style.marginBottom = "12px";
+
+                    const [y, m, d] = day.split("-").map(Number);
+                    const localDate = new Date(y, m - 1, d);
+
+                    const dateLabel = localDate.toLocaleDateString("en-US", {
+                        weekday: "short",
+                        month: "short",
+                        day: "numeric"
+                    });
+
+                    dayBlock.innerHTML = `<h3 style="margin:0 0 6px;">${dateLabel}</h3>`;
+
+                    // Render events for this day
+                    days[day].forEach(ev => {
+                        const item = document.createElement("div");
+                        item.className = "calendar-item";
+                        item.style.borderLeft = `4px solid ${ev.color}`;
+                        item.style.padding = "6px";
+                        item.style.margin = "4px 0";
+
+                        const parts = ev.start.split(" ");
+                        const timeLabel = `${parts[1]} ${parts[2] || ""}`;
+
+                        let topLine = "";
+                        if (timeLabel !== "12:00 AM") {
+                            topLine = `<strong>${timeLabel}</strong> — `;
+                        }
+
+                        item.innerHTML = `
+                            ${topLine}${ev.title}
+                            <div style="font-size:0.8rem; opacity:0.7;">${ev.calendar}</div>
+                        `;
+
+                        dayBlock.appendChild(item);
+                    });
+
+                    content.appendChild(dayBlock);
+                });
+
+            } catch (err) {
+                loading.textContent = "Calendar error";
+            }
+
+            // --- Auto-refresh every 30 seconds (only set once) ---
+            if (!widget._calendarRefreshSet) {
+                widget._calendarRefreshSet = true;
+                setInterval(() => loadCalendarWeekInto(widget), 30000);
+            }
+        }
+
+        window.addEventListener("DOMContentLoaded", () => {
+            const middlePanel = document.querySelector('[data-panel="middle"]');
+            const bottomLeft = document.querySelector('[data-panel="bottom-left"]');
+            const bottomRight = document.querySelector('[data-panel="bottom-right"]');
+
+            // --- Middle panel: default calendar-week ---
+            if (middlePanel) {
+                [...middlePanel.children].forEach(child => {
+                    if (!child.classList.contains("panel-controls")) {
+                        child.remove();
+                    }
+                });
+
+                addWidgetToPanel(middlePanel, "calendar-week");
+            }
+
+            // --- Bottom-left: default weather forecast ---
+            if (bottomLeft) {
+                [...bottomLeft.children].forEach(child => {
+                    if (!child.classList.contains("panel-controls")) {
+                        child.remove();
+                    }
+                });
+
+                addWidgetToPanel(bottomLeft, "weather");
+            }
+
+            // --- Bottom-right: default photos ---
+            if (bottomRight) {
+                [...bottomRight.children].forEach(child => {
+                    if (!child.classList.contains("panel-controls")) {
+                        child.remove();
+                    }
+                });
+                //Delay only the photos widget
+                setTimeout(() => {
+                    addWidgetToPanel(bottomRight, "photos");
+                }, 30000); // 5 seconds — adjust as needed
+
+
+                //addWidgetToPanel(bottomRight, "photos");
+            }
+        });
+       
+
+        async function loadSlideshow(widget, folder = "default") {
+            const imgEl = widget.querySelector(".slideshow-img");
+
+            try {
+                const res = await fetch(`/api/photos?folder=${folder}`);
+                let data = await res.json();
+
+                if (!data.images || data.images.length === 0) {
+                    imgEl.alt = "No photos found";
+                    return;
+                }
+
+                let index = 0;
+                imgEl.src = data.images[index];
+
+                setInterval(async () => {
+                    index++;
+
+                    // When we reach the end, refresh the list
+                    if (index >= data.images.length) {
+                        try {
+                            const refreshRes = await fetch(`/api/photos?folder=${folder}`);
+                            const updated = await refreshRes.json();
+
+                            if (updated.images && updated.images.length > 0) {
+                                data.images = updated.images;
+                            }
+                        } catch (err) {
+                            console.log("Photo refresh failed:", err);
+                        }
+
+                        index = 0;
+                    }
+
+                    // Fade-out → swap → fade-in
+                    imgEl.style.opacity = 0;
+
+                    setTimeout(() => {
+                        imgEl.src = data.images[index];
+                        imgEl.style.opacity = 1;
+                    }, 300);
+
+                }, 15000);
+
+            } catch (err) {
+                imgEl.alt = "Error loading photos";
+            }
+        }
+
+        async function loadLocalSlideshow(widget) {
+            const img = widget.querySelector(".slideshow-img");
+
+            try {
+                const res = await fetch("/api/photos/local");
+                const data = await res.json();
+
+                if (!data.images || data.images.length === 0) {
+                    img.alt = "No local photos found";
+                    return;
+                }
+
+                let index = 0;
+
+                function showNext() {
+                    img.style.opacity = 0;
+
+                    setTimeout(() => {
+                        img.src = data.images[index];
+                        img.onload = () => {
+                            img.style.opacity = 1;
+                        };
+
+                        index = (index + 1) % data.images.length;
+                    }, 300);
+                }
+
+                showNext();
+                setInterval(showNext, 15000);
+
+            } catch (err) {
+                img.alt = "Error loading local photos";
+            }
+        }
+
+        async function loadWeatherForecast(widget) {
+            const loading = widget.querySelector(".weather-loading");
+            const container = widget.querySelector(".weather-forecast");
+            const header = widget.querySelector(".weather-header");
+
+            try {
+                const res = await fetch("/api/weather/forecast");
+                const data = await res.json();
+
+                if (data.error) {
+                    loading.textContent = "Forecast unavailable";
+                    return;
+                }
+
+                // Set header city name
+                const city = (data.city || "Forecast");
+                header.textContent = `${city.charAt(0).toUpperCase() + city.slice(1)} — 5‑Day Forecast`;
+                header.style.color = "#ff5555";
+
+                loading.style.display = "none";
+                container.style.display = "flex";
+                container.style.gap = "14px";
+                container.style.justifyContent = "center";
+
+                container.innerHTML = data.forecast.map(day => `
+            <div class="forecast-day" style="
+                background:#222;
+                padding:10px;
+                border-radius:10px;
+                text-align:center;
+                width:90px;
+                font-size: 2rem;
+            ">
+                <div style="font-size:2rem; margin-bottom:4px;">${day.date}</div>
+                <img src="https://openweathermap.org/img/wn/${day.icon}.png"
+                     style="height:40px; filter: invert(1) brightness(2);">
+                <div style="margin-top:4px; font-size:1.9rem;">
+                    <span style="color:#ff5555; font-weight:700;">${day.temp_high}°</span>
+                    <span style="color:#aaa;"> / </span>
+                    <span style="color:#4aa3ff; font-weight:700;">${day.temp_low}°</span>
+                </div>
+                <div style="font-size:1.5rem; opacity:1;">${day.condition}</div>
+            </div>
+        `).join("");
+
+            } catch (err) {
+                loading.textContent = "Forecast error";
+            }
+
+            // --- Auto-refresh every 4 hours (only set once) ---
+            if (!widget._weatherRefreshSet) {
+                widget._weatherRefreshSet = true;
+                setInterval(() => loadWeatherForecast(widget), 4 * 60 * 60 * 1000);
+            }
+        }
+
+        async function initWeightWidget(widget) {
+            const input = widget.querySelector(".weight-input");
+            const button = widget.querySelector(".weight-submit");
+            const status = widget.querySelector(".weight-status");
+            const canvas = widget.querySelector(".weight-chart");
+            const ctx = canvas.getContext("2d");
+
+            // Resize canvas to match CSS box
+            function resizeCanvas() {
+                canvas.width = canvas.clientWidth;
+                canvas.height = canvas.clientHeight;
+            }
+            resizeCanvas();
+            window.addEventListener("resize", resizeCanvas);
+
+            // --- Save weight ---
+            button.addEventListener("click", async () => {
+                const weight = parseFloat(input.value);
+                if (!weight) {
+                    status.textContent = "Enter a valid weight";
+                    return;
+                }
+
+                status.textContent = "Saving...";
+
+                try {
+                    const res = await fetch("/api/weight", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ weight })
+                    });
+
+                    const data = await res.json();
+                    status.textContent = "Saved!";
+                    input.value = "";
+
+                    loadWeightData(); // refresh graph
+                } catch (err) {
+                    status.textContent = "Error saving weight";
+                }
+            });
+
+            // --- Load last year of weights ---
+            async function loadWeightData() {
+                try {
+                    const res = await fetch("/api/weight/year");
+                    const data = await res.json();
+
+                    drawWeightGraph(data);
+                } catch (err) {
+                    status.textContent = "Error loading weight history";
+                }
+            }
+
+            // --- Draw graph ---
+            function drawWeightGraph(data) {
+                resizeCanvas();
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+                if (!data || data.length === 0) {
+                    ctx.fillStyle = "#aaa";
+                    ctx.fillText("No data", 10, 20);
+                    return;
+                }
+
+                const weights = data.map(d => d.weight);
+                const minW = Math.min(...weights);
+                const maxW = Math.max(...weights);
+
+                const xStep = canvas.width / (data.length - 1);
+                const yScale = (canvas.height - 20) / (maxW - minW);
+
+                ctx.strokeStyle = "#4caf50";
+                ctx.lineWidth = 3;
+                ctx.beginPath();
+
+                data.forEach((d, i) => {
+                    const x = i * xStep;
+                    const y = canvas.height - ((d.weight - minW) * yScale) - 10;
+
+                    if (i === 0) ctx.moveTo(x, y);
+                    else ctx.lineTo(x, y);
+                });
+
+                ctx.stroke();
+            }
+
+            // Initial load
+            loadWeightData();
+        }
+
+        function initAnalogClock(widget) {
+            const face = widget.querySelector(".clock-face");
+            const ticksContainer = widget.querySelector(".ticks");
+
+            // -------------------------------
+            // 1. Generate 60 tick marks
+            // -------------------------------
+            for (let i = 0; i < 60; i++) {
+                const tick = document.createElement("div");
+                tick.style.transform = `rotate(${i * 6}deg)`;
+                tick.style.height = i % 5 === 0 ? "24px" : "14px";
+                tick.style.background = i % 5 === 0 ? "#333" : "#999";
+                ticksContainer.appendChild(tick);
+            }
+
+            // -------------------------------
+            // 2. Generate hour numbers (1–12) with minute in parentheses
+            // -------------------------------
+            for (let h = 1; h <= 12; h++) {
+                const wrapper = document.createElement("div");
+                wrapper.className = "clock-number";
+
+                const angle = (h / 12) * 360;
+                const rad = angle * Math.PI / 180;
+
+                const tickRadius = 150;
+                const inset = 30;
+                const radius = tickRadius - inset;
+
+                const cx = 180;
+                const cy = 180;
+
+                const x = cx + radius * Math.sin(rad);
+                const y = cy - radius * Math.cos(rad);
+
+                wrapper.style.left = `${x}px`;
+                wrapper.style.top = `${y}px`;
+                wrapper.style.transform = `translate(-50%, -50%) rotate(${angle}deg)`;
+
+                const inner = document.createElement("div");
+                inner.style.transform = `rotate(${-angle}deg)`;
+
+                const minuteValue = (h * 5) % 60 || 60;
+                inner.innerHTML = `${h}<span class="minute">(${minuteValue})</span>`;
+
+                wrapper.appendChild(inner);
+                face.appendChild(wrapper);
+            }
+
+            // -------------------------------
+            // 3. Animate the hands
+            // -------------------------------
+            const hourHand = widget.querySelector(".hour-hand");
+            const minuteHand = widget.querySelector(".minute-hand");
+            const secondHand = widget.querySelector(".second-hand");
+            const alarmDot = widget.querySelector(".alarm-dot");
+
+            function updateAnalogClock() {
+                const now = new Date();
+
+                const seconds = now.getSeconds();
+                const minutes = now.getMinutes();
+                const hours = now.getHours();
+
+                const secondDeg = seconds * 6;
+                const minuteDeg = minutes * 6 + seconds * 0.1;
+                const hourDeg = (hours % 12) * 30 + minutes * 0.5;
+
+                secondHand.style.transform =
+                    `translateX(-50%) translateY(-100%) rotate(${secondDeg}deg)`;
+                minuteHand.style.transform =
+                    `translateX(-50%) translateY(-100%) rotate(${minuteDeg}deg)`;
+                hourHand.style.transform =
+                    `translateX(-50%) translateY(-100%) rotate(${hourDeg}deg)`;
+
+                // --- alarm check tied to this clock face ---
+                if (face._alarmMinute === minutes && !face._alarmTriggered) {
+                    face._alarmTriggered = true;
+                    triggerAlarm();   // <-- call your MP3 alarm here
+                }
+                if (face._alarmMinute !== minutes) {
+                    face._alarmTriggered = false;
+                }
+            }
+
+            updateAnalogClock();
+            setInterval(updateAnalogClock, 1000);
+
+            // -------------------------------
+            // 4. Click to set alarm minute
+            // -------------------------------
+            face.addEventListener("click", (e) => {
+                const rect = face.getBoundingClientRect();
+
+                const cx = rect.left + rect.width / 2;
+                const cy = rect.top + rect.height / 2;
+
+                const dx = e.clientX - cx;
+                const dy = cy - e.clientY;
+
+                let angle = Math.atan2(dx, dy) * (180 / Math.PI);
+                if (angle < 0) angle += 360;
+
+                // shift one minute earlier to counter the bias
+                const minute = (Math.round(angle / 6) + 59) % 60;
+
+                const radius = 150;
+                const x = 180 + radius * Math.sin(angle * Math.PI / 180);
+                const y = 180 - radius * Math.cos(angle * Math.PI / 180);
+
+                alarmDot.style.left = `${x}px`;
+                alarmDot.style.top = `${y}px`;
+                alarmDot.style.display = "block";
+
+                face._alarmMinute = minute;
+                face._alarmTriggered = false;
+            });
+        }
+    </script>
+
+</body>
+</html>
