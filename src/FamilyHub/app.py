@@ -1,4 +1,3 @@
-
 import requests
 import os
 from ics import Calendar
@@ -10,13 +9,17 @@ from googleapiclient.discovery import build
 from threading import Thread
 import csv
 
-
+# Mapping of logical folder names to Google Drive folder IDs
 PHOTO_FOLDERS = {
     "default": "<key folder 1>",
-    "school":  "<key folder 2>",
+    "school": "<key folder 2>",
     "vacation": "<key folder 3>",
 }
 
+# In-memory cache for Google Drive photo URLs
+# Each folder stores:
+#   images: list of direct-view URLs
+#   last_update: timestamp of last refresh
 PHOTO_CACHE = {
     folder: {
         "images": [],
@@ -25,49 +28,52 @@ PHOTO_CACHE = {
     for folder in PHOTO_FOLDERS
 }
 
+# External microservice for calendar events
 CALENDAR_SERVICE_URL = "http://localhost:5001"
+
+# Google Drive API configuration
 PHOTO_FOLDER_ID = "<key photo folder>"
 SERVICE_ACCOUNT_FILE = "service_account.json"
 SCOPES = ["https://www.googleapis.com/auth/drive.readonly"]
 
+# Local CSV file for weight tracking
 WEIGHT_FILE = "static/weight/weights.csv"
 
 app = Flask(__name__)
 
 
 def get_dummy_events():
-    # test data, replace later with Google Calendar API / ICS parsing
+    """Temporary placeholder events until Google Calendar or ICS parsing is added."""
     return [
         {"time": "9:00 AM", "title": "Team Standup", "calendar": "Work", "color": "#1e88e5"},
         {"time": "12:00 PM", "title": "Lunch with Sam", "calendar": "Personal", "color": "#43a047"},
         {"time": "3:30 PM", "title": "Dentist", "calendar": "Family", "color": "#e53935"},
     ]
 
+
 @app.route("/")
 def dashboard():
+    """Render the main dashboard page with current time and today's events."""
     now = datetime.now()
     events = get_dummy_events()
-    return render_template(
-        "dashboard.html",
-        now=now,
-        events=events,
-    )
+    return render_template("dashboard.html", now=now, events=events)
+
 
 @app.route("/api/weather")
 def api_weather():
+    """Return current weather for a given city using OpenWeatherMap."""
     API_KEY = "<weather api key for openweathermap.org>"
 
-    # Read ?city= parameter
+    # Optional ?city= parameter; defaults to Fairport
     city = (request.args.get("city") or "fairport").lower()
 
-    # Map cities to coordinates
+    # Hardcoded city to coordinate mapping
     CITY_COORDS = {
         "cleveland": {"lat": "41.4993", "lon": "-81.6944"},
-        "raleigh":   {"lat": "35.7796", "lon": "-78.6382"},
-        "fairport":  {"lat": "43.0982", "lon": "-77.4419"},
+        "raleigh": {"lat": "35.7796", "lon": "-78.6382"},
+        "fairport": {"lat": "43.0982", "lon": "-77.4419"},
     }
 
-    # Default to Fairport if unknown
     coords = CITY_COORDS.get(city, CITY_COORDS["fairport"])
 
     url = (
@@ -86,8 +92,10 @@ def api_weather():
     except Exception as e:
         return jsonify({"error": str(e)})
 
+
 @app.route("/api/calendar")
 def api_calendar():
+    """Proxy to the calendar microservice for today's events."""
     try:
         response = requests.get(f"{CALENDAR_SERVICE_URL}/events/today", timeout=2)
         response.raise_for_status()
@@ -97,12 +105,9 @@ def api_calendar():
         return jsonify({"error": "calendar service unavailable"}), 503
 
 
-
-
-
-
 @app.route("/api/calendar/week")
 def api_calendar_week():
+    """Proxy to the calendar microservice for week view."""
     try:
         response = requests.get(f"{CALENDAR_SERVICE_URL}/events/week", timeout=2)
         response.raise_for_status()
@@ -112,11 +117,9 @@ def api_calendar_week():
         return jsonify({"error": "calendar service unavailable"}), 503
 
 
-
-
-
 @app.route("/api/weight", methods=["POST"])
 def api_save_weight():
+    """Append today's weight entry to the CSV log."""
     data = request.get_json(silent=True)
 
     if not data or "weight" not in data:
@@ -125,7 +128,7 @@ def api_save_weight():
 
     weight = data["weight"]
 
-    # Ensure directory exists
+    # Ensure directory exists before writing
     os.makedirs(os.path.dirname(WEIGHT_FILE), exist_ok=True)
 
     today = datetime.now().strftime("%Y-%m-%d")
@@ -141,8 +144,10 @@ def api_save_weight():
 
     return jsonify({"status": "ok", "date": today, "weight": weight})
 
+
 @app.route("/api/weight/year")
 def api_weight_year():
+    """Return all weight entries from the past 365 days."""
     one_year_ago = datetime.now() - timedelta(days=365)
     results = []
 
@@ -168,8 +173,10 @@ def api_weight_year():
 
     return jsonify(results)
 
+
 @app.route("/api/photos")
 def api_photos():
+    """Return cached Google Drive photo URLs for a given folder."""
     folder = request.args.get("folder", "default")
 
     if folder not in PHOTO_CACHE:
@@ -177,30 +184,35 @@ def api_photos():
 
     return jsonify({"images": PHOTO_CACHE[folder]["images"]})
 
+
 @app.route("/api/photos/local")
 def api_photos_local():
+    """Return list of local static photos from /static/photos."""
     photos_dir = os.path.join(app.static_folder, "photos")
 
     if not os.path.exists(photos_dir):
         return jsonify({"error": "local photos folder missing"}), 500
 
-    files = []
-    for filename in os.listdir(photos_dir):
-        if filename.lower().endswith((".jpg", ".jpeg", ".png", ".gif")):
-            files.append(f"/static/photos/{filename}")
+    files = [
+        f"/static/photos/{filename}"
+        for filename in os.listdir(photos_dir)
+        if filename.lower().endswith((".jpg", ".jpeg", ".png", ".gif"))
+    ]
 
     return jsonify({"images": files})
 
+
 @app.route("/api/weather/forecast")
 def api_weather_forecast():
+    """Return 5-day forecast summary using OpenWeatherMap."""
     API_KEY = "<open weather key>"
 
     city = (request.args.get("city") or "fairport").lower()
 
     CITY_COORDS = {
         "cleveland": {"lat": "41.4993", "lon": "-81.6944"},
-        "raleigh":   {"lat": "35.7796", "lon": "-78.6382"},
-        "fairport":  {"lat": "43.0982", "lon": "-77.4419"},
+        "raleigh": {"lat": "35.7796", "lon": "-78.6382"},
+        "fairport": {"lat": "43.0982", "lon": "-77.4419"},
     }
 
     coords = CITY_COORDS.get(city, CITY_COORDS["fairport"])
@@ -216,6 +228,7 @@ def api_weather_forecast():
         if "list" not in data:
             return jsonify({"error": "No forecast data returned"}), 500
 
+        # Group 3-hour forecast entries by day
         days = {}
 
         for entry in data["list"]:
@@ -227,18 +240,15 @@ def api_weather_forecast():
             condition = entry["weather"][0]["main"]
 
             if day_key not in days:
-                days[day_key] = {
-                    "temps": [],
-                    "icons": [],
-                    "conditions": []
-                }
+                days[day_key] = {"temps": [], "icons": [], "conditions": []}
 
             days[day_key]["temps"].append(temp)
             days[day_key]["icons"].append(icon)
             days[day_key]["conditions"].append(condition)
 
+        # Build compact 5-day summary
         forecast = []
-        for day_key, info in list(days.items())[:5]:  # first 5 days
+        for day_key, info in list(days.items())[:5]:
             date_obj = datetime.strptime(day_key, "%Y-%m-%d")
 
             forecast.append({
@@ -249,17 +259,14 @@ def api_weather_forecast():
                 "condition": max(set(info["conditions"]), key=info["conditions"].count)
             })
 
-        return jsonify({
-            "city": city,
-            "forecast": forecast
-})
-
-
+        return jsonify({"city": city, "forecast": forecast})
 
     except Exception as e:
         return jsonify({"error": str(e)})
 
+
 def refresh_photo_cache():
+    """Background thread: refresh Google Drive photo URLs every 5 minutes."""
     global PHOTO_CACHE
 
     while True:
@@ -288,12 +295,12 @@ def refresh_photo_cache():
             except Exception as e:
                 print(f"Error refreshing {folder_name}:", e)
 
-        time.sleep(300)  # 5 minutes
+        time.sleep(300)  # Refresh every 5 minutes
 
 
 if __name__ == "__main__":
-    # Access from same machine: http://127.0.0.1:5000
+    # Start background Google Drive sync thread
     Thread(target=refresh_photo_cache, daemon=True).start()
-    app.run(host="0.0.0.0", port=5000, debug=True)
 
-    
+    # Run Flask server on all interfaces
+    app.run(host="0.0.0.0", port=5000, debug=True)
